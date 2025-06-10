@@ -25,7 +25,7 @@ interface ConfigurationPanelProps {
 	setSubscriptionPercentage: (value: number) => void;
 }
 
-export default function ConfigurationPanel({
+const ConfigurationPanel = React.memo(function ConfigurationPanel({
 	config,
 	setConfig,
 	europeanPercentage,
@@ -45,8 +45,8 @@ export default function ConfigurationPanel({
 	setSubscriptionPercentage,
 }: ConfigurationPanelProps) {
 	return (
-		<div className="xl:col-span-1 space-y-6">
-			<Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm sticky top-8">
+		<div className="xl:col-span-1 space-y-6 sticky top-8">
+			<Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
 				<CardHeader className="pb-4">
 					<CardTitle className="text-xl font-semibold text-gray-900">Configuration</CardTitle>
 					<CardDescription className="text-gray-600">
@@ -71,10 +71,20 @@ export default function ConfigurationPanel({
 						subscriptionPercentage={subscriptionPercentage}
 						setSubscriptionPercentage={setSubscriptionPercentage}
 					/>
-					<TaxComplianceSection config={config} setConfig={setConfig} />
+					<TaxComplianceSection
+						config={config}
+						setConfig={setConfig}
+						europeanPercentage={europeanPercentage}
+						usPercentage={usPercentage}
+						ukPercentage={ukPercentage}
+						numberOfSales={numberOfSales}
+						blendedAverageAmount={blendedAverageAmount}
+					/>
 				</CardContent>
 			</Card>
 			<HardcodedSettings />
 		</div>
 	);
-}
+});
+
+export default ConfigurationPanel;

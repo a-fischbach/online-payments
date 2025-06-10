@@ -1,3 +1,5 @@
+import { DEFAULT_PAYMENT_SETTINGS, PaymentSettings } from "./settings";
+
 interface TransactionData {
 	amount: number;
 	volume: number; // transactions per month
@@ -51,38 +53,22 @@ interface MerchantOfRecordCosts {
 }
 
 export class PaymentProcessorCalculator {
-	private accountancyFees = {
-		// Base accountant fees (same for both Stripe and MoR)
-		baseAnnualAccountantFee: 500, // £500 annual fee for basic accounting
+	private settings: PaymentSettings;
 
-		// Monthly fees (covers all compliance and filing work)
-		monthlyEuVatFee: 200, // £200/month covers all EU VAT work (compliance + quarterly filing)
-		monthlyUkVatFee: 120, // £120/month covers all UK VAT work (compliance + quarterly filing)
-		monthlyUsSalesTaxFee: 160, // £160/month covers US sales tax work per state (compliance + filing)
-	};
+	constructor(customSettings?: Partial<PaymentSettings>) {
+		this.settings = customSettings
+			? this.mergeSettings(DEFAULT_PAYMENT_SETTINGS, customSettings)
+			: DEFAULT_PAYMENT_SETTINGS;
+	}
 
-	private stripeRatesUK = {
-		// UK rates as of 2024
-		baseRate: 0.015, // 1.5% for UK domestic cards
-		baseFixedFee: 0.2, // £0.20 per transaction
-		europeanRate: 0.025, // 2.5% for European cards
-		europeanFixedFee: 0.2, // £0.20 per transaction
-		nonEuropeanRate: 0.0325, // 3.25% for non-European cards
-		nonEuropeanFixedFee: 0.2, // £0.20 per transaction
-		subscriptionSurcharge: 0.005, // 0.5% additional for subscriptions
-		stripeTaxRate: 0.005, // 0.5% for Stripe Tax
-		chargebackFee: 15.0, // £15 per chargeback
-		disputeFee: 15.0, // £15 per dispute
-	};
-
-	//This should be US Dollars
-	private morRatesUK = {
-		platformFeeRate: 0.05, // 5% platform fee
-		platformFixedFee: 0.5, // $0.50 per transaction
-		internationalFeeRate: 0.015, // 1.5% for international transactions outside US
-		subscriptionSurchargeRate: 0.005, // 0.5% additional for subscriptions
-		payoutFeeRate: 0.01, // 1% of payout amount
-	};
+	private mergeSettings(defaults: PaymentSettings, custom: Partial<PaymentSettings>): PaymentSettings {
+		return {
+			accountancy: { ...defaults.accountancy, ...custom.accountancy },
+			stripe: { ...defaults.stripe, ...custom.stripe },
+			mor: { ...defaults.mor, ...custom.mor },
+			assumptions: { ...defaults.assumptions, ...custom.assumptions },
+		};
+	}
 
 	calculateStripeCosts(data: TransactionData, config: StripeConfig): StripeCosts {
 		const monthlyVolume = data.volume;
@@ -100,51 +86,54 @@ export class PaymentProcessorCalculator {
 		// UK domestic processing fees
 		const ukRevenue = ukTransactions * data.amount;
 		const ukProcessingFees =
-			ukTransactions * this.stripeRatesUK.baseFixedFee + ukRevenue * this.stripeRatesUK.baseRate;
+			ukTransactions * this.settings.stripe.baseFixedFee + ukRevenue * this.settings.stripe.baseRate;
 
 		// European fees (EU cards)
 		const euRevenue = euTransactions * data.amount;
 		const europeanFees =
-			euTransactions * this.stripeRatesUK.europeanFixedFee + euRevenue * this.stripeRatesUK.europeanRate;
+			euTransactions * this.settings.stripe.europeanFixedFee + euRevenue * this.settings.stripe.europeanRate;
 
 		// US fees (non-European rate)
 		const usRevenue = usTransactions * data.amount;
 		const usFees =
-			usTransactions * this.stripeRatesUK.nonEuropeanFixedFee + usRevenue * this.stripeRatesUK.nonEuropeanRate;
+			usTransactions * this.settings.stripe.nonEuropeanFixedFee +
+			usRevenue * this.settings.stripe.nonEuropeanRate;
 
 		// Other non-European fees (rest of world)
 		const otherNonEuropeanRevenue = otherNonEuropeanTransactions * data.amount;
 		const otherNonEuropeanFees =
-			otherNonEuropeanTransactions * this.stripeRatesUK.nonEuropeanFixedFee +
-			otherNonEuropeanRevenue * this.stripeRatesUK.nonEuropeanRate;
+			otherNonEuropeanTransactions * this.settings.stripe.nonEuropeanFixedFee +
+			otherNonEuropeanRevenue * this.settings.stripe.nonEuropeanRate;
 
 		const nonEuropeanFees = usFees + otherNonEuropeanFees;
 
 		// Subscription surcharge
-		const subscriptionSurcharge = subscriptionRevenue * this.stripeRatesUK.subscriptionSurcharge;
+		const subscriptionSurcharge = subscriptionRevenue * this.settings.stripe.subscriptionSurcharge;
 
 		// Stripe Tax surcharge (for VAT handling)
-		const stripeTaxSurcharge = monthlyRevenue * this.stripeRatesUK.stripeTaxRate;
+		const stripeTaxSurcharge = monthlyRevenue * this.settings.stripe.stripeTaxRate;
 
 		// Tax compliance costs (EU VAT OSS, UK VAT, US Sales Tax)
-		const monthlyEuVatFee = config.euVatOssRequired ? this.accountancyFees.monthlyEuVatFee : 0;
-		const monthlyUkVatFee = config.ukVatRequired ? this.accountancyFees.monthlyUkVatFee : 0;
+		const monthlyEuVatFee = config.euVatOssRequired ? this.settings.accountancy.monthlyEuVatFee : 0;
+		const monthlyUkVatFee = config.ukVatRequired ? this.settings.accountancy.monthlyUkVatFee : 0;
 		const monthlyUsSalesTaxFee = config.usSalesTaxRequired
-			? this.accountancyFees.monthlyUsSalesTaxFee * config.numberOfUsStates
+			? this.settings.accountancy.monthlyUsSalesTaxFee * config.numberOfUsStates
 			: 0;
 
 		const totalMonthlyTaxCompliance = monthlyEuVatFee + monthlyUkVatFee + monthlyUsSalesTaxFee;
 
 		// Chargeback fees (optional)
-		const estimatedChargebacks = config.includeChargebackFee ? monthlyVolume * 0.006 : 0; // 0.6% chargeback rate
-		const chargebackFees = estimatedChargebacks * this.stripeRatesUK.chargebackFee;
+		const estimatedChargebacks = config.includeChargebackFee
+			? monthlyVolume * this.settings.assumptions.chargebackRate
+			: 0;
+		const chargebackFees = estimatedChargebacks * this.settings.stripe.chargebackFee;
 
 		// Additional fees (disputes only)
-		const disputeFees = monthlyVolume * 0.002 * this.stripeRatesUK.disputeFee; // 0.2% dispute rate
+		const disputeFees = monthlyVolume * this.settings.assumptions.disputeRate * this.settings.stripe.disputeFee;
 		const additionalFees = disputeFees;
 
 		// Base accountant fee (same for both Stripe and MoR)
-		const monthlyBaseAccountantFee = this.accountancyFees.baseAnnualAccountantFee / 12;
+		const monthlyBaseAccountantFee = this.settings.accountancy.baseAnnualAccountantFee / 12;
 
 		const baseProcessingFees = ukProcessingFees;
 		const totalMonthlyCost =
@@ -193,22 +182,22 @@ export class PaymentProcessorCalculator {
 		const internationalRevenue = internationalTransactions * data.amount;
 
 		// Platform fee (percentage + fixed fee per transaction) - in USD
-		const platformPercentageFee = monthlyRevenue * this.morRatesUK.platformFeeRate;
-		const platformFixedFees = monthlyVolume * this.morRatesUK.platformFixedFee;
+		const platformPercentageFee = monthlyRevenue * this.settings.mor.platformFeeRate;
+		const platformFixedFees = monthlyVolume * this.settings.mor.platformFixedFee;
 		const platformFee = platformPercentageFee + platformFixedFees;
 
 		// International fees (outside US) - EU and other regions
-		const europeanFees = internationalRevenue * this.morRatesUK.internationalFeeRate;
+		const europeanFees = internationalRevenue * this.settings.mor.internationalFeeRate;
 		const nonEuropeanFees = 0; // Simplified to single international rate
 
 		// Subscription surcharge
-		const subscriptionSurcharge = subscriptionRevenue * this.morRatesUK.subscriptionSurchargeRate;
+		const subscriptionSurcharge = subscriptionRevenue * this.settings.mor.subscriptionSurchargeRate;
 
 		// Payout fees (percentage of revenue only)
-		const payoutFee = monthlyRevenue * this.morRatesUK.payoutFeeRate;
+		const payoutFee = monthlyRevenue * this.settings.mor.payoutFeeRate;
 
 		// Base accountant fee (same as Stripe - averaged monthly)
-		const monthlyBaseAccountantFee = this.accountancyFees.baseAnnualAccountantFee / 12;
+		const monthlyBaseAccountantFee = this.settings.accountancy.baseAnnualAccountantFee / 12;
 
 		const totalMonthlyCost =
 			platformFee + europeanFees + subscriptionSurcharge + payoutFee + monthlyBaseAccountantFee;
@@ -269,16 +258,15 @@ export class PaymentProcessorCalculator {
 			const stripeCosts = this.calculateStripeCosts(data, config);
 			const morCosts = this.calculateMoRCosts(data);
 
-			// Convert MoR costs from USD to GBP (approximate rate)
-			const usdToGbpRate = 0.79;
-			const morCostsGbp = morCosts.totalMonthlyCost * usdToGbpRate;
+			// Convert MoR costs from USD to GBP
+			const morCostsGbp = morCosts.totalMonthlyCost * this.settings.assumptions.usdToGbpRate;
 
 			turnoverPoints.push({
 				turnover: monthlyTurnover,
 				stripeCost: stripeCosts.totalMonthlyCost,
 				morCost: morCostsGbp,
 				stripeProfit: stripeCosts.monthlyProfit,
-				morProfit: morCosts.monthlyProfit * usdToGbpRate,
+				morProfit: morCosts.monthlyProfit * this.settings.assumptions.usdToGbpRate,
 			});
 		}
 

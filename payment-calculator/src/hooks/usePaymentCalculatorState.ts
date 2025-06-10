@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { StripeConfig } from "@/lib/payment-calculator";
 
 export interface PaymentCalculatorState {
@@ -48,25 +48,58 @@ export function usePaymentCalculatorState(): PaymentCalculatorState {
 		return subscriptionPortion + nonSubscriptionPortion;
 	}, [subscriptionPercentage, averageSubscriptionAmount, averageTransactionAmount]);
 
+	// Memoize setter functions to prevent unnecessary re-renders
+	const memoizedSetSubscriptionPercentage = useCallback((value: number) => {
+		setSubscriptionPercentage(value);
+	}, []);
+
+	const memoizedSetAverageSubscriptionAmount = useCallback((value: number) => {
+		setAverageSubscriptionAmount(value);
+	}, []);
+
+	const memoizedSetAverageTransactionAmount = useCallback((value: number) => {
+		setAverageTransactionAmount(value);
+	}, []);
+
+	const memoizedSetEuropeanPercentage = useCallback((value: number) => {
+		setEuropeanPercentage(value);
+	}, []);
+
+	const memoizedSetUsPercentage = useCallback((value: number) => {
+		setUsPercentage(value);
+	}, []);
+
+	const memoizedSetUkPercentage = useCallback((value: number) => {
+		setUkPercentage(value);
+	}, []);
+
+	const memoizedSetMaxTurnover = useCallback((value: number) => {
+		setMaxTurnover(value);
+	}, []);
+
+	const memoizedSetNumberOfSales = useCallback((value: number) => {
+		setNumberOfSales(value);
+	}, []);
+
 	return {
 		config,
 		setConfig,
 		subscriptionPercentage,
-		setSubscriptionPercentage,
+		setSubscriptionPercentage: memoizedSetSubscriptionPercentage,
 		averageSubscriptionAmount,
-		setAverageSubscriptionAmount,
+		setAverageSubscriptionAmount: memoizedSetAverageSubscriptionAmount,
 		averageTransactionAmount,
-		setAverageTransactionAmount,
+		setAverageTransactionAmount: memoizedSetAverageTransactionAmount,
 		europeanPercentage,
-		setEuropeanPercentage,
+		setEuropeanPercentage: memoizedSetEuropeanPercentage,
 		usPercentage,
-		setUsPercentage,
+		setUsPercentage: memoizedSetUsPercentage,
 		ukPercentage,
-		setUkPercentage,
+		setUkPercentage: memoizedSetUkPercentage,
 		maxTurnover,
-		setMaxTurnover,
+		setMaxTurnover: memoizedSetMaxTurnover,
 		numberOfSales,
-		setNumberOfSales,
+		setNumberOfSales: memoizedSetNumberOfSales,
 		blendedAverageAmount,
 	};
 }

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -28,7 +28,7 @@ interface TransactionDistributionSectionProps {
 	setSubscriptionPercentage: (value: number) => void;
 }
 
-export default function TransactionDistributionSection({
+const TransactionDistributionSection = React.memo(function TransactionDistributionSection({
 	europeanPercentage,
 	usPercentage,
 	ukPercentage,
@@ -45,6 +45,72 @@ export default function TransactionDistributionSection({
 	subscriptionPercentage,
 	setSubscriptionPercentage,
 }: TransactionDistributionSectionProps) {
+	// Memoize expensive calculations
+	const memoizedTurnoverSliderValue = useMemo(() => turnoverToSliderValue(maxTurnover), [maxTurnover]);
+	const memoizedSalesSliderValue = useMemo(() => salesToSliderValue(numberOfSales), [numberOfSales]);
+	const memoizedFormattedTurnover = useMemo(() => formatTurnover(maxTurnover), [maxTurnover]);
+	const memoizedFormattedCurrency = useMemo(
+		() => formatCurrency(numberOfSales * blendedAverageAmount),
+		[numberOfSales, blendedAverageAmount]
+	);
+
+	// Memoize callback functions to prevent unnecessary re-renders
+	const handleEuPercentageChange = useCallback(
+		(value: number[]) => {
+			adjustPercentages(value[0], "eu");
+		},
+		[adjustPercentages]
+	);
+
+	const handleUsPercentageChange = useCallback(
+		(value: number[]) => {
+			adjustPercentages(value[0], "us");
+		},
+		[adjustPercentages]
+	);
+
+	const handleUkPercentageChange = useCallback(
+		(value: number[]) => {
+			adjustPercentages(value[0], "uk");
+		},
+		[adjustPercentages]
+	);
+
+	const handleMaxTurnoverChange = useCallback(
+		(value: number[]) => {
+			setMaxTurnover(sliderValueToTurnover(value[0]));
+		},
+		[setMaxTurnover]
+	);
+
+	const handleNumberOfSalesChange = useCallback(
+		(value: number[]) => {
+			setNumberOfSales(sliderValueToSales(value[0]));
+		},
+		[setNumberOfSales]
+	);
+
+	const handleSubscriptionPercentageChange = useCallback(
+		(value: number[]) => {
+			setSubscriptionPercentage(value[0]);
+		},
+		[setSubscriptionPercentage]
+	);
+
+	const handleAverageSubscriptionAmountChange = useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			setAverageSubscriptionAmount(Number(e.target.value));
+		},
+		[setAverageSubscriptionAmount]
+	);
+
+	const handleAverageTransactionAmountChange = useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			setAverageTransactionAmount(Number(e.target.value));
+		},
+		[setAverageTransactionAmount]
+	);
+
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center space-x-2 pb-2 border-b border-gray-100">
@@ -68,7 +134,7 @@ export default function TransactionDistributionSection({
 						max={100}
 						step={1}
 						value={[europeanPercentage]}
-						onValueChange={(value) => adjustPercentages(value[0], "eu")}
+						onValueChange={handleEuPercentageChange}
 						className="w-full"
 					/>
 				</div>
@@ -88,7 +154,7 @@ export default function TransactionDistributionSection({
 						max={100}
 						step={1}
 						value={[usPercentage]}
-						onValueChange={(value) => adjustPercentages(value[0], "us")}
+						onValueChange={handleUsPercentageChange}
 						className="w-full"
 					/>
 				</div>
@@ -108,7 +174,7 @@ export default function TransactionDistributionSection({
 						max={100}
 						step={1}
 						value={[ukPercentage]}
-						onValueChange={(value) => adjustPercentages(value[0], "uk")}
+						onValueChange={handleUkPercentageChange}
 						className="w-full"
 					/>
 				</div>
@@ -122,7 +188,7 @@ export default function TransactionDistributionSection({
 						type="number"
 						min="0"
 						value={averageSubscriptionAmount}
-						onChange={(e) => setAverageSubscriptionAmount(Number(e.target.value))}
+						onChange={handleAverageSubscriptionAmountChange}
 						className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
 					/>
 				</div>
@@ -136,7 +202,7 @@ export default function TransactionDistributionSection({
 						type="number"
 						min="0"
 						value={averageTransactionAmount}
-						onChange={(e) => setAverageTransactionAmount(Number(e.target.value))}
+						onChange={handleAverageTransactionAmountChange}
 						className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
 					/>
 					<div className="text-xs text-gray-600">Blended average: £{blendedAverageAmount.toFixed(2)}</div>
@@ -148,7 +214,7 @@ export default function TransactionDistributionSection({
 							Chart Max Turnover
 						</Label>
 						<span className="text-sm font-semibold text-gray-600 bg-gray-50 px-2 py-1 rounded">
-							{formatTurnover(maxTurnover)}
+							{memoizedFormattedTurnover}
 						</span>
 					</div>
 					<Slider
@@ -156,8 +222,8 @@ export default function TransactionDistributionSection({
 						min={0}
 						max={100}
 						step={1}
-						value={[turnoverToSliderValue(maxTurnover)]}
-						onValueChange={(value) => setMaxTurnover(sliderValueToTurnover(value[0]))}
+						value={[memoizedTurnoverSliderValue]}
+						onValueChange={handleMaxTurnoverChange}
 						className="w-full"
 					/>
 					<div className="flex justify-between text-xs text-gray-500">
@@ -180,17 +246,15 @@ export default function TransactionDistributionSection({
 						min={0}
 						max={100}
 						step={1}
-						value={[salesToSliderValue(numberOfSales)]}
-						onValueChange={(value) => setNumberOfSales(sliderValueToSales(value[0]))}
+						value={[memoizedSalesSliderValue]}
+						onValueChange={handleNumberOfSalesChange}
 						className="w-full"
 					/>
 					<div className="flex justify-between text-xs text-gray-500">
 						<span>1</span>
 						<span>10,000</span>
 					</div>
-					<div className="text-xs text-gray-600 mt-1">
-						Turnover: {formatCurrency(numberOfSales * blendedAverageAmount)}
-					</div>
+					<div className="text-xs text-gray-600 mt-1">Turnover: {memoizedFormattedCurrency}</div>
 				</div>
 
 				<div className="space-y-3">
@@ -208,11 +272,13 @@ export default function TransactionDistributionSection({
 						max={100}
 						step={1}
 						value={[subscriptionPercentage]}
-						onValueChange={(value) => setSubscriptionPercentage(value[0])}
+						onValueChange={handleSubscriptionPercentageChange}
 						className="w-full"
 					/>
 				</div>
 			</div>
 		</div>
 	);
-}
+});
+
+export default TransactionDistributionSection;

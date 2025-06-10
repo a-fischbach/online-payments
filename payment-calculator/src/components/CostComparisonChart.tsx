@@ -13,7 +13,7 @@ interface CostComparisonChartProps {
 	chartData: ChartDataPoint[];
 }
 
-export default function CostComparisonChart({ chartData }: CostComparisonChartProps) {
+const CostComparisonChart = React.memo(function CostComparisonChart({ chartData }: CostComparisonChartProps) {
 	return (
 		<Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
 			<CardHeader className="pb-6">
@@ -70,4 +70,6 @@ export default function CostComparisonChart({ chartData }: CostComparisonChartPr
 			</CardContent>
 		</Card>
 	);
-}
+});
+
+export default CostComparisonChart;

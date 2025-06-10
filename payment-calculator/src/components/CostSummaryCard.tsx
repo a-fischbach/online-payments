@@ -1,6 +1,7 @@
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PaymentProcessorCalculator, StripeConfig } from "@/lib/payment-calculator";
+import { DEFAULT_PAYMENT_SETTINGS } from "@/lib/settings";
 import { formatCurrency, formatTurnover } from "@/utils/formatters";
 
 interface CostSummaryCardProps {
@@ -36,7 +37,7 @@ export default function CostSummaryCard({
 
 	const stripeCosts = calculator.calculateStripeCosts(data, config);
 	const morCosts = calculator.calculateMoRCosts(data);
-	const usdToGbpRate = 0.79;
+	const usdToGbpRate = DEFAULT_PAYMENT_SETTINGS.assumptions.usdToGbpRate;
 
 	const stripeMonthlyCost = stripeCosts.totalMonthlyCost;
 	const morMonthlyCost = morCosts.totalMonthlyCost * usdToGbpRate;

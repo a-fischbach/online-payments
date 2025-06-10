@@ -1,15 +1,32 @@
 "use client";
 
-import React from "react";
-import { useMemo } from "react";
+import React, { useMemo, useCallback, useEffect, useState } from "react";
 import { PaymentProcessorCalculator } from "@/lib/payment-calculator";
 import { usePaymentCalculatorState } from "@/hooks/usePaymentCalculatorState";
 import { usePercentageAdjustment } from "@/hooks/usePercentageAdjustment";
+import { useAutomaticTaxThresholds } from "@/hooks/useAutomaticTaxThresholds";
 import PaymentCalculatorHeader from "@/components/PaymentCalculatorHeader";
 import ConfigurationPanel from "@/components/ConfigurationPanel";
 import CostComparisonChart from "@/components/CostComparisonChart";
 import CostSummaryCard from "@/components/CostSummaryCard";
 import DetailedBreakdownCard from "@/components/DetailedBreakdownCard";
+
+// Debounce hook for expensive calculations
+function useDebounce<T>(value: T, delay: number) {
+	const [debouncedValue, setDebouncedValue] = useState(value);
+
+	useEffect(() => {
+		const handler = setTimeout(() => {
+			setDebouncedValue(value);
+		}, delay);
+
+		return () => {
+			clearTimeout(handler);
+		};
+	}, [value, delay]);
+
+	return debouncedValue;
+}
 
 export default function PaymentCalculatorPage() {
 	const state = usePaymentCalculatorState();
@@ -44,28 +61,51 @@ export default function PaymentCalculatorPage() {
 		setUkPercentage
 	);
 
+	// Automatically adjust tax compliance settings based on thresholds
+	useAutomaticTaxThresholds({
+		europeanPercentage,
+		usPercentage,
+		ukPercentage,
+		numberOfSales,
+		blendedAverageAmount,
+		setConfig,
+	});
+
 	const calculator = useMemo(() => new PaymentProcessorCalculator(), []);
 
-	const chartData = useMemo(() => {
-		return calculator.generateChartData(
+	// Create a debounced version of the key values for chart calculation
+	const debouncedChartInputs = useDebounce(
+		{
 			config,
 			subscriptionPercentage,
 			averageSubscriptionAmount,
 			europeanPercentage,
 			usPercentage,
 			maxTurnover,
-			blendedAverageAmount
+			blendedAverageAmount,
+		},
+		100 // 100ms debounce
+	);
+
+	const chartData = useMemo(() => {
+		return calculator.generateChartData(
+			debouncedChartInputs.config,
+			debouncedChartInputs.subscriptionPercentage,
+			debouncedChartInputs.averageSubscriptionAmount,
+			debouncedChartInputs.europeanPercentage,
+			debouncedChartInputs.usPercentage,
+			debouncedChartInputs.maxTurnover,
+			debouncedChartInputs.blendedAverageAmount
 		);
 	}, [
 		calculator,
-		config,
-		subscriptionPercentage,
-		averageSubscriptionAmount,
-		blendedAverageAmount,
-		europeanPercentage,
-		usPercentage,
-		ukPercentage,
-		maxTurnover,
+		debouncedChartInputs.config,
+		debouncedChartInputs.subscriptionPercentage,
+		debouncedChartInputs.averageSubscriptionAmount,
+		debouncedChartInputs.blendedAverageAmount,
+		debouncedChartInputs.europeanPercentage,
+		debouncedChartInputs.usPercentage,
+		debouncedChartInputs.maxTurnover,
 	]);
 
 	return (
