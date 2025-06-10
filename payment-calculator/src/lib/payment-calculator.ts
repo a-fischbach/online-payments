@@ -12,11 +12,12 @@ interface StripeConfig {
 	euVatOssRequired: boolean; // whether EU VAT OSS registration is needed (required from first EU sale)
 	ukVatRequired: boolean; // whether UK VAT registration is needed (optional, threshold-based)
 	usSalesTaxRequired: boolean; // whether US sales tax compliance is needed (optional, nexus-based)
+	numberOfUsStates: number; // number of US states registered for sales tax (default: 1)
 }
 
 interface StripeCosts {
-	vatRegistrationCost: number;
 	ongoingVatComplianceCost: number;
+	monthlyTaxComplianceCost: number; // monthly ongoing compliance costs
 	baseProcessingFees: number;
 	europeanFees: number;
 	nonEuropeanFees: number;
@@ -24,7 +25,8 @@ interface StripeCosts {
 	stripeTaxSurcharge: number;
 	chargebackFees: number;
 	additionalFees: number; // dispute fees, SEPA fees, etc.
-	accountantFee: number; // flat accountant fee
+	baseAccountantFee: number; // flat accountant fee (same for both Stripe and MoR)
+	stripeNexusFilingFee: number; // additional Stripe-specific nexus registration and filing fees
 	totalMonthlyCost: number;
 	totalAnnualCost: number;
 	monthlyTurnover: number;
@@ -39,6 +41,7 @@ interface MerchantOfRecordCosts {
 	nonEuropeanFees: number;
 	subscriptionSurcharge: number;
 	payoutFee: number;
+	baseAccountantFee: number; // flat accountant fee (same for both Stripe and MoR)
 	totalMonthlyCost: number;
 	totalAnnualCost: number;
 	monthlyTurnover: number;
@@ -48,6 +51,16 @@ interface MerchantOfRecordCosts {
 }
 
 export class PaymentProcessorCalculator {
+	private accountancyFees = {
+		// Base accountant fees (same for both Stripe and MoR)
+		baseAnnualAccountantFee: 500, // £500 annual fee for basic accounting
+
+		// Monthly fees (covers all compliance and filing work)
+		monthlyEuVatFee: 200, // £200/month covers all EU VAT work (compliance + quarterly filing)
+		monthlyUkVatFee: 120, // £120/month covers all UK VAT work (compliance + quarterly filing)
+		monthlyUsSalesTaxFee: 160, // £160/month covers US sales tax work per state (compliance + filing)
+	};
+
 	private stripeRatesUK = {
 		// UK rates as of 2024
 		baseRate: 0.015, // 1.5% for UK domestic cards
@@ -60,18 +73,6 @@ export class PaymentProcessorCalculator {
 		stripeTaxRate: 0.005, // 0.5% for Stripe Tax
 		chargebackFee: 15.0, // £15 per chargeback
 		disputeFee: 15.0, // £15 per dispute
-		// EU VAT OSS compliance costs (required from first EU sale)
-		euVatOssRegistrationCost: 200, // £200 one-time registration fee for EU VAT OSS
-		monthlyEuVatCompliance: 180, // £180/month for accountant/software for EU VAT OSS compliance
-		quarterlyEuVatFiling: 80, // £80 per quarter for EU VAT OSS filing
-		// UK VAT compliance costs (optional, threshold-based at £85k)
-		ukVatRegistrationCost: 0, // Free to register for VAT in UK
-		monthlyUkVatCompliance: 120, // £120/month for UK VAT accounting/software
-		quarterlyUkVatFiling: 40, // £40 per quarter for UK VAT filing
-		// US Sales Tax compliance costs (optional, nexus-based, averaged across states)
-		usSalesTaxRegistrationCost: 250, // £250 (~$300) average setup for 5-7 states
-		monthlyUsSalesTaxCompliance: 160, // £160/month for multi-state sales tax software & accounting
-		monthlyUsSalesTaxFiling: 60, // £60/month average filing costs across states
 	};
 
 	//This should be US Dollars
@@ -126,24 +127,13 @@ export class PaymentProcessorCalculator {
 		const stripeTaxSurcharge = monthlyRevenue * this.stripeRatesUK.stripeTaxRate;
 
 		// Tax compliance costs (EU VAT OSS, UK VAT, US Sales Tax)
-		const euVatOssRegistrationCost = config.euVatOssRequired ? this.stripeRatesUK.euVatOssRegistrationCost : 0;
-		const ukVatRegistrationCost = config.ukVatRequired ? this.stripeRatesUK.ukVatRegistrationCost : 0;
-		const usSalesTaxRegistrationCost = config.usSalesTaxRequired
-			? this.stripeRatesUK.usSalesTaxRegistrationCost
-			: 0;
-		const totalRegistrationCost = euVatOssRegistrationCost + ukVatRegistrationCost + usSalesTaxRegistrationCost;
-
-		const monthlyEuVatCompliance = config.euVatOssRequired
-			? this.stripeRatesUK.monthlyEuVatCompliance + this.stripeRatesUK.quarterlyEuVatFiling / 3
-			: 0;
-		const monthlyUkVatCompliance = config.ukVatRequired
-			? this.stripeRatesUK.monthlyUkVatCompliance + this.stripeRatesUK.quarterlyUkVatFiling / 3
-			: 0;
-		const monthlyUsSalesTaxCompliance = config.usSalesTaxRequired
-			? this.stripeRatesUK.monthlyUsSalesTaxCompliance + this.stripeRatesUK.monthlyUsSalesTaxFiling
+		const monthlyEuVatFee = config.euVatOssRequired ? this.accountancyFees.monthlyEuVatFee : 0;
+		const monthlyUkVatFee = config.ukVatRequired ? this.accountancyFees.monthlyUkVatFee : 0;
+		const monthlyUsSalesTaxFee = config.usSalesTaxRequired
+			? this.accountancyFees.monthlyUsSalesTaxFee * config.numberOfUsStates
 			: 0;
 
-		const totalMonthlyTaxCompliance = monthlyEuVatCompliance + monthlyUkVatCompliance + monthlyUsSalesTaxCompliance;
+		const totalMonthlyTaxCompliance = monthlyEuVatFee + monthlyUkVatFee + monthlyUsSalesTaxFee;
 
 		// Chargeback fees (optional)
 		const estimatedChargebacks = config.includeChargebackFee ? monthlyVolume * 0.006 : 0; // 0.6% chargeback rate
@@ -153,8 +143,8 @@ export class PaymentProcessorCalculator {
 		const disputeFees = monthlyVolume * 0.002 * this.stripeRatesUK.disputeFee; // 0.2% dispute rate
 		const additionalFees = disputeFees;
 
-		// Accountant fee (averaged monthly)
-		const monthlyAccountantFee = 500 / 12; // £500 annual fee averaged to monthly (£41.67/month)
+		// Base accountant fee (same for both Stripe and MoR)
+		const monthlyBaseAccountantFee = this.accountancyFees.baseAnnualAccountantFee / 12;
 
 		const baseProcessingFees = ukProcessingFees;
 		const totalMonthlyCost =
@@ -166,13 +156,13 @@ export class PaymentProcessorCalculator {
 			chargebackFees +
 			additionalFees +
 			totalMonthlyTaxCompliance +
-			monthlyAccountantFee;
+			monthlyBaseAccountantFee;
 
-		const totalAnnualCost = totalMonthlyCost * 12 + totalRegistrationCost;
+		const totalAnnualCost = totalMonthlyCost * 12;
 
 		return {
-			vatRegistrationCost: totalRegistrationCost,
 			ongoingVatComplianceCost: totalMonthlyTaxCompliance * 12,
+			monthlyTaxComplianceCost: totalMonthlyTaxCompliance,
 			baseProcessingFees,
 			europeanFees,
 			nonEuropeanFees,
@@ -180,7 +170,8 @@ export class PaymentProcessorCalculator {
 			stripeTaxSurcharge,
 			chargebackFees,
 			additionalFees,
-			accountantFee: monthlyAccountantFee * 12, // Return annual total for consistency
+			baseAccountantFee: monthlyBaseAccountantFee * 12, // Return annual total for consistency
+			stripeNexusFilingFee: 0, // Stripe-specific nexus registration and filing fees are removed
 			totalMonthlyCost,
 			totalAnnualCost,
 			monthlyTurnover: monthlyRevenue,
@@ -198,7 +189,6 @@ export class PaymentProcessorCalculator {
 
 		// For MoR, US transactions are typically domestic (lower fees)
 		const usTransactions = monthlyVolume * (data.usPercentage / 100);
-		const usRevenue = usTransactions * data.amount;
 		const internationalTransactions = monthlyVolume - usTransactions;
 		const internationalRevenue = internationalTransactions * data.amount;
 
@@ -217,7 +207,11 @@ export class PaymentProcessorCalculator {
 		// Payout fees (percentage of revenue only)
 		const payoutFee = monthlyRevenue * this.morRatesUK.payoutFeeRate;
 
-		const totalMonthlyCost = platformFee + europeanFees + subscriptionSurcharge + payoutFee;
+		// Base accountant fee (same as Stripe - averaged monthly)
+		const monthlyBaseAccountantFee = this.accountancyFees.baseAnnualAccountantFee / 12;
+
+		const totalMonthlyCost =
+			platformFee + europeanFees + subscriptionSurcharge + payoutFee + monthlyBaseAccountantFee;
 		const totalAnnualCost = totalMonthlyCost * 12;
 
 		return {
@@ -226,6 +220,7 @@ export class PaymentProcessorCalculator {
 			nonEuropeanFees,
 			subscriptionSurcharge,
 			payoutFee,
+			baseAccountantFee: monthlyBaseAccountantFee * 12, // Return annual total for consistency
 			totalMonthlyCost,
 			totalAnnualCost,
 			monthlyTurnover: monthlyRevenue,
@@ -236,7 +231,15 @@ export class PaymentProcessorCalculator {
 	}
 
 	// Generate data points for charting - calculates costs across different turnover amounts
-	generateChartData(config: StripeConfig, subscriptionPercentage: number = 0, averageSubscriptionAmount: number = 30, europeanPercentage: number = 30, usPercentage: number = 25) {
+	generateChartData(
+		config: StripeConfig,
+		subscriptionPercentage: number = 0,
+		averageSubscriptionAmount: number = 30,
+		europeanPercentage: number = 30,
+		usPercentage: number = 25,
+		maxTurnover: number = 1000000, // £1M default max for chart
+		averageTransactionAmount: number = 50 // £50 default average transaction
+	) {
 		const turnoverPoints: Array<{
 			turnover: number;
 			stripeCost: number;
@@ -244,34 +247,32 @@ export class PaymentProcessorCalculator {
 			stripeProfit: number;
 			morProfit: number;
 		}> = [];
-		const maxTurnover = 1000000; // £1M max for chart
 		const steps = 50;
-		
+
 		for (let i = 0; i <= steps; i++) {
 			const monthlyTurnover = (maxTurnover / steps) * i;
-			
+
 			if (monthlyTurnover === 0) continue;
-			
-			// Estimate transaction volume (assuming £50 average transaction)
-			const averageTransaction = 50;
-			const volume = Math.round(monthlyTurnover / averageTransaction);
-			
+
+			// Estimate transaction volume using provided average transaction amount
+			const volume = Math.round(monthlyTurnover / averageTransactionAmount);
+
 			const data: TransactionData = {
-				amount: averageTransaction,
+				amount: averageTransactionAmount,
 				volume,
 				europeanPercentage,
 				usPercentage,
 				subscriptionPercentage,
 				averageSubscriptionAmount,
 			};
-			
+
 			const stripeCosts = this.calculateStripeCosts(data, config);
 			const morCosts = this.calculateMoRCosts(data);
-			
+
 			// Convert MoR costs from USD to GBP (approximate rate)
 			const usdToGbpRate = 0.79;
 			const morCostsGbp = morCosts.totalMonthlyCost * usdToGbpRate;
-			
+
 			turnoverPoints.push({
 				turnover: monthlyTurnover,
 				stripeCost: stripeCosts.totalMonthlyCost,
@@ -280,7 +281,7 @@ export class PaymentProcessorCalculator {
 				morProfit: morCosts.monthlyProfit * usdToGbpRate,
 			});
 		}
-		
+
 		return turnoverPoints;
 	}
 }

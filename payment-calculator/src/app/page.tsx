@@ -1,103 +1,130 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+import React from "react";
+import { useMemo } from "react";
+import { PaymentProcessorCalculator } from "@/lib/payment-calculator";
+import { usePaymentCalculatorState } from "@/hooks/usePaymentCalculatorState";
+import { usePercentageAdjustment } from "@/hooks/usePercentageAdjustment";
+import PaymentCalculatorHeader from "@/components/PaymentCalculatorHeader";
+import ConfigurationPanel from "@/components/ConfigurationPanel";
+import CostComparisonChart from "@/components/CostComparisonChart";
+import CostSummaryCard from "@/components/CostSummaryCard";
+import DetailedBreakdownCard from "@/components/DetailedBreakdownCard";
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+export default function PaymentCalculatorPage() {
+	const state = usePaymentCalculatorState();
+	const {
+		config,
+		setConfig,
+		subscriptionPercentage,
+		setSubscriptionPercentage,
+		averageSubscriptionAmount,
+		setAverageSubscriptionAmount,
+		averageTransactionAmount,
+		setAverageTransactionAmount,
+		europeanPercentage,
+		setEuropeanPercentage,
+		usPercentage,
+		setUsPercentage,
+		ukPercentage,
+		setUkPercentage,
+		maxTurnover,
+		setMaxTurnover,
+		numberOfSales,
+		setNumberOfSales,
+		blendedAverageAmount,
+	} = state;
+
+	const { adjustPercentages } = usePercentageAdjustment(
+		europeanPercentage,
+		setEuropeanPercentage,
+		usPercentage,
+		setUsPercentage,
+		ukPercentage,
+		setUkPercentage
+	);
+
+	const calculator = useMemo(() => new PaymentProcessorCalculator(), []);
+
+	const chartData = useMemo(() => {
+		return calculator.generateChartData(
+			config,
+			subscriptionPercentage,
+			averageSubscriptionAmount,
+			europeanPercentage,
+			usPercentage,
+			maxTurnover,
+			blendedAverageAmount
+		);
+	}, [
+		calculator,
+		config,
+		subscriptionPercentage,
+		averageSubscriptionAmount,
+		blendedAverageAmount,
+		europeanPercentage,
+		usPercentage,
+		ukPercentage,
+		maxTurnover,
+	]);
+
+	return (
+		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
+			<PaymentCalculatorHeader />
+
+			{/* Main Content */}
+			<div className="container mx-auto px-6 py-8">
+				<div className="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
+					<ConfigurationPanel
+						config={config}
+						setConfig={setConfig}
+						europeanPercentage={europeanPercentage}
+						usPercentage={usPercentage}
+						ukPercentage={ukPercentage}
+						adjustPercentages={adjustPercentages}
+						averageSubscriptionAmount={averageSubscriptionAmount}
+						setAverageSubscriptionAmount={setAverageSubscriptionAmount}
+						averageTransactionAmount={averageTransactionAmount}
+						setAverageTransactionAmount={setAverageTransactionAmount}
+						blendedAverageAmount={blendedAverageAmount}
+						maxTurnover={maxTurnover}
+						setMaxTurnover={setMaxTurnover}
+						numberOfSales={numberOfSales}
+						setNumberOfSales={setNumberOfSales}
+						subscriptionPercentage={subscriptionPercentage}
+						setSubscriptionPercentage={setSubscriptionPercentage}
+					/>
+
+					{/* Chart and Analysis */}
+					<div className="xl:col-span-3 space-y-8">
+						<CostComparisonChart chartData={chartData} />
+
+						<CostSummaryCard
+							numberOfSales={numberOfSales}
+							blendedAverageAmount={blendedAverageAmount}
+							europeanPercentage={europeanPercentage}
+							usPercentage={usPercentage}
+							subscriptionPercentage={subscriptionPercentage}
+							averageSubscriptionAmount={averageSubscriptionAmount}
+							calculator={calculator}
+							config={config}
+						/>
+
+						<DetailedBreakdownCard
+							numberOfSales={numberOfSales}
+							blendedAverageAmount={blendedAverageAmount}
+							europeanPercentage={europeanPercentage}
+							usPercentage={usPercentage}
+							subscriptionPercentage={subscriptionPercentage}
+							averageSubscriptionAmount={averageSubscriptionAmount}
+							averageTransactionAmount={averageTransactionAmount}
+							calculator={calculator}
+							config={config}
+							chartData={chartData}
+						/>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
 }

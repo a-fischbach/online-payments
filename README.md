@@ -4,56 +4,61 @@ A Next.js application that compares the costs of using Stripe vs Merchant of Rec
 
 ## Features
 
-- **Interactive Cost Comparison**: Compare Stripe and Merchant of Record costs across different monthly turnover amounts
-- **Customizable Parameters**: Adjust transaction distribution, subscription percentages, and tax compliance requirements
-- **Visual Charts**: Interactive line charts showing cost curves for both payment processors
-- **Tax Compliance Modeling**: Factor in EU VAT OSS, UK VAT, and US Sales Tax compliance costs
-- **Real-time Updates**: Charts and calculations update instantly as you adjust parameters
+-   **Interactive Cost Comparison**: Compare Stripe and Merchant of Record costs across different monthly turnover amounts
+-   **Customizable Parameters**: Adjust transaction distribution, subscription percentages, and tax compliance requirements
+-   **Visual Charts**: Interactive line charts showing cost curves for both payment processors
+-   **Tax Compliance Modeling**: Factor in EU VAT OSS, UK VAT, and US Sales Tax compliance costs
+-   **Real-time Updates**: Charts and calculations update instantly as you adjust parameters
 
 ## Technology Stack
 
-- **Next.js 15**: React framework with App Router
-- **TypeScript**: Type-safe development
-- **Tailwind CSS**: Utility-first CSS framework
-- **shadcn/ui**: Modern React component library
-- **Recharts**: Interactive charting library
+-   **Next.js 15**: React framework with App Router
+-   **TypeScript**: Type-safe development
+-   **Tailwind CSS**: Utility-first CSS framework
+-   **shadcn/ui**: Modern React component library
+-   **Recharts**: Interactive charting library
 
 ## Key Calculations
 
 ### Stripe Costs Include:
-- UK domestic transactions (1.5% + £0.20)
-- EU transactions (2.5% + £0.20)
-- US/International transactions (3.25% + £0.20)
-- Subscription surcharges (0.5%)
-- Stripe Tax (0.5%)
-- Tax compliance costs (EU VAT OSS, UK VAT, US Sales Tax)
-- Chargeback and dispute fees
-- Accountant fees
+
+-   UK domestic transactions (1.5% + £0.20)
+-   EU transactions (2.5% + £0.20)
+-   US/International transactions (3.25% + £0.20)
+-   Subscription surcharges (0.5%)
+-   Stripe Tax (0.5%)
+-   Tax compliance costs (EU VAT OSS, UK VAT, US Sales Tax)
+-   Chargeback and dispute fees
+-   Accountant fees
 
 ### Merchant of Record Costs Include:
-- Platform fees (5% + $0.50 per transaction)
-- International processing fees (1.5%)
-- Subscription surcharges (0.5%)
-- Payout fees (1%)
-- No tax compliance burden (handled by MoR)
+
+-   Platform fees (5% + $0.50 per transaction)
+-   International processing fees (1.5%)
+-   Subscription surcharges (0.5%)
+-   Payout fees (1%)
+-   No tax compliance burden (handled by MoR)
 
 ## Getting Started
 
 1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+
+    ```bash
+    npm install
+    ```
 
 2. **Run the development server:**
-   ```bash
-   npm run dev
-   ```
+
+    ```bash
+    npm run dev
+    ```
 
 3. **Build for production:**
-   ```bash
-   npm run build
-   npm start
-   ```
+
+    ```bash
+    npm run build
+    npm start
+    ```
 
 4. **Open your browser:**
    Navigate to [http://localhost:3000](http://localhost:3000)
@@ -68,45 +73,51 @@ A Next.js application that compares the costs of using Stripe vs Merchant of Rec
 
 ## Key Insights
 
-- **Merchant of Record** typically offers better value for smaller businesses or those with complex international tax requirements
-- **Stripe** becomes more cost-effective as transaction volumes increase and tax complexity is manageable
-- Tax compliance costs can significantly impact total cost of ownership
-- The break-even point varies based on your specific business parameters
+-   **Merchant of Record** typically offers better value for smaller businesses or those with complex international tax requirements
+-   **Stripe** becomes more cost-effective as transaction volumes increase and tax complexity is manageable
+-   Tax compliance costs can significantly impact total cost of ownership
+-   The break-even point varies based on your specific business parameters
 
 ## Configuration Options
 
 ### Transaction Distribution
-- EU Transactions (%)
-- US Transactions (%)
-- UK Transactions (calculated automatically)
-- Subscription Transactions (%)
-- Average Subscription Amount
+
+-   EU Transactions (%)
+-   US Transactions (%)
+-   UK Transactions (calculated automatically)
+-   Subscription Transactions (%)
+-   Average Subscription Amount
 
 ### Tax & Compliance
-- EU VAT OSS Registration (required from first EU sale)
-- UK VAT Registration (optional, £85k threshold)
-- US Sales Tax Compliance (optional, nexus-based)
-- Chargeback Fee Inclusion
+
+-   EU VAT OSS Registration (required from first EU sale)
+-   UK VAT Registration (optional, £85k threshold)
+-   US Sales Tax Compliance (optional, nexus-based)
+-   Chargeback Fee Inclusion
 
 ## Cost Assumptions
 
 ### Exchange Rates
-- USD to GBP: 0.79 (used for MoR cost conversions)
+
+-   USD to GBP: 0.79 (used for MoR cost conversions)
 
 ### Average Transaction
-- £50 (used for volume estimations in chart)
+
+-   £50 (used for volume estimations in chart)
 
 ### Stripe UK Rates (2024)
-- UK domestic: 1.5% + £0.20
-- EU cards: 2.5% + £0.20
-- Non-EU cards: 3.25% + £0.20
-- Subscription surcharge: 0.5%
-- Stripe Tax: 0.5%
+
+-   UK domestic: 1.5% + £0.20
+-   EU cards: 2.5% + £0.20
+-   Non-EU cards: 3.25% + £0.20
+-   Subscription surcharge: 0.5%
+-   Stripe Tax: 0.5%
 
 ### Tax Compliance Costs
-- EU VAT OSS: £200 setup + £180/month
-- UK VAT: Free setup + £120/month
-- US Sales Tax: £250 setup + £220/month
+
+-   EU VAT OSS: £200/month
+-   UK VAT: £120/month
+-   US Sales Tax: £160/month per state
 
 ## Project Structure
 
