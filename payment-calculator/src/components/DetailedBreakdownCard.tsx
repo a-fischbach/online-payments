@@ -69,9 +69,19 @@ export default function DetailedBreakdownCard({
 			</CardHeader>
 			<CardContent>
 				<div className="space-y-6">
-					<div className="text-center p-4 bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg">
-						<h4 className="text-2xl font-bold text-gray-900">{numberOfSales.toLocaleString()} Sales</h4>
-						<p className="text-gray-600">{formatCurrency(turnover)} Monthly Turnover</p>
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div className="text-center p-4 bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg">
+							<h4 className="text-2xl font-bold text-gray-900">{numberOfSales.toLocaleString()} Sales</h4>
+							<p className="text-gray-600">{formatCurrency(turnover)} Monthly Turnover</p>
+							<p className="text-sm text-gray-500">Current Month</p>
+						</div>
+						<div className="text-center p-4 bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg">
+							<h4 className="text-2xl font-bold text-blue-900">
+								{(numberOfSales * 12).toLocaleString()} Sales
+							</h4>
+							<p className="text-blue-600">{formatCurrency(turnover * 12)} Annual Turnover</p>
+							<p className="text-sm text-blue-500">Projected Yearly</p>
+						</div>
 					</div>
 
 					{/* Turnover and Profit Summary */}
